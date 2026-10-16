@@ -69,6 +69,10 @@ main{max-width:1320px;margin:0 auto;padding:34px 24px 10px}
 .legrow{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);padding:1.5px 0}
 .legrow i{width:15px;height:11px;flex:none;border:1px solid rgba(22,34,70,.12)}
 .legnote{font-size:11px;color:var(--ink-3);margin-top:8px;line-height:1.45}
+.qbar-t{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700;margin-top:10px}
+.qbar{display:flex;height:12px;margin-top:5px;border:1px solid rgba(22,34,70,.15)}
+.qbar i{display:block;height:100%}
+.qbar-n{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:3px}
 .legmedia{margin-top:10px;padding:8px 9px;background:var(--surface-2);border-left:3px solid var(--naranja)}
 .legmedia span{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
 .legmedia b{display:block;font:400 22px/1.2 var(--serif);color:var(--navy)}
@@ -158,7 +162,7 @@ footer{margin-top:38px}
     <div class="notas">
       <p><b>Sobre los datos.</b> Fuente: cartografía censal y base manzana-entidad del Censo de Población y Vivienda 2024 (INE). El INE oculta las cifras de personas con menos de 4 casos por manzana (afecta sobre todo a inmigrantes); esas manzanas aparecen en gris, no como cero. Los datos de hogares y viviendas no se suprimen. Todos los indicadores son agregados por manzana: el INE no publica datos de cada hogar o persona a este nivel.</p>
       <p><b>Límites y supuestos.</b> Las manzanas con 1 a 3 viviendas ocupadas fueron unidas por el INE con una vecina. Los límites de las entidades rurales son polígonos de Thiessen trazados por el INE alrededor de las viviendas censadas: son una referencia estadística, no límites reales en terreno. Las personas en situación de calle y de operativos especiales solo están a nivel comunal y no aparecen en el mapa. En manzanas con pocos habitantes un porcentaje cambia mucho con una o dos personas; el detalle avisa cuando la manzana tiene menos de 20 personas.</p>
-      <p><b>Índice y nivel alto con NNA.</b> El índice socioeconómico se estandariza dentro de cada comuna, así que muestra la posición de cada manzana respecto de su propia comuna y no es comparable entre comunas. Nivel alto con NNA marca los polígonos en los quintiles 4 y 5 del índice de su comuna que, a la vez, están en el 40% de mayor densidad de NNA por hectárea en los tramos de edad elegidos. Los colegios son los del Directorio Oficial Mineduc 2025, con matrícula y en funcionamiento.</p>
+      <p><b>Índices y nivel alto con NNA.</b> Hay dos versiones del índice socioeconómico con los mismos 7 componentes. El comunal se estandariza dentro de cada comuna: muestra la posición de cada manzana respecto de su propia comuna y no es comparable entre comunas. El índice RM se estandariza con toda la región y sí permite comparar manzanas y comunas entre sí. Nivel alto con NNA marca los polígonos en los quintiles 4 y 5 del índice de su comuna que, a la vez, están en el 40% de mayor densidad de NNA por hectárea en los tramos de edad elegidos. Los colegios son los del Directorio Oficial Mineduc 2025, con matrícula y en funcionamiento.</p>
     </div>
   </section>
 </main>
@@ -177,7 +181,7 @@ footer{margin-top:38px}
 (function(){
 'use strict';
 // versión de los archivos de datos: cambiarla cada vez que se regeneran con prep_manzanas_rm.py
-var DATOS_VERSION = '2026-10-15';
+var DATOS_VERSION = '2026-10-15b';
 var DEFAULT_CUT = 13101; // Santiago
 
 var fmt = function(x){ return x===null || x===undefined ? '' : Math.round(x).toLocaleString('es-CL'); };
@@ -221,7 +225,8 @@ var VARS = [
   {p:'viv', key:'alcant', n:'Con alcantarillado', d:'Viviendas con baño dentro de la vivienda conectado al alcantarillado, sobre las viviendas ocupadas.'},
   {p:'viv', key:'elec', n:'Calefacción eléctrica', d:'Hogares que calefaccionan con electricidad, sobre el total de hogares.'},
 
-  {p:'gse', key:'ise', n:'Índice socioeconómico (proxy)', u:'', dec:2, pond:true, d:'Promedio de puntajes estandarizados de 7 componentes: escolaridad, educación superior, directivos y profesionales, computador en el hogar y, en negativo, hacinamiento, paredes precarias y allegamiento. Los puntajes usan la media y la desviación estándar de la comuna, ponderadas por su población de 18 años o más: 0 = adulto promedio de la comuna. No es comparable entre comunas.'},
+  {p:'gse', key:'ise', n:'Índice socioeconómico comunal', u:'', dec:2, pond:true, d:'Promedio de puntajes estandarizados de 7 componentes: escolaridad, educación superior, directivos y profesionales, computador en el hogar y, en negativo, hacinamiento, paredes precarias y allegamiento. Los puntajes usan la media y la desviación estándar de la comuna, ponderadas por su población de 18 años o más: 0 = adulto promedio de la comuna. No es comparable entre comunas.'},
+  {p:'gse', key:'iserm', n:'Índice socioeconómico RM', u:'', dec:2, pond:true, fijo:true, d:'Mismos 7 componentes que el índice comunal, pero estandarizados con la media y la desviación estándar de toda la Región Metropolitana, ponderadas por su población de 18 años o más: 0 = adulto promedio de la RM. Es comparable entre comunas. Las demás comunas se colorean según su promedio.'},
   {p:'gse', key:'obj', n:'Nivel alto con NNA', cat:true, d:''},
   {p:'gse', key:'esc', n:'Escolaridad promedio', u:' años', pond:true, d:'Años de escolaridad promedio de las personas de 18 años o más.'},
   {p:'gse', key:'sup', n:'Educación superior', d:'Personas con educación terciaria, maestría o doctorado, sobre las personas de 18 años o más.'},
@@ -421,7 +426,7 @@ function valorComunal(filas){
     var n = 0, ha = 0; filas.forEach(function(r){ if(r.v[KH]>0){ n += r.v[KNN]||0; ha += r.v[KH]; } });
     return ha ? {x:n/ha, base:'total de NNA sobre el total de hectáreas'} : null;
   }
-  var kw = BASE_P.indexOf(v.key)>=0 ? 0 : (BASE_W.indexOf(v.key)>=0 || v.key==='ise' ? KW : 1);
+  var kw = BASE_P.indexOf(v.key)>=0 ? 0 : (BASE_W.indexOf(v.key)>=0 || v.key==='ise' || v.key==='iserm' ? KW : 1);
   var sx = 0, sw = 0, xs = [];
   filas.forEach(function(r){
     var x = r.v[v.k], w = r.v[kw];
@@ -464,7 +469,14 @@ function leyenda(nulos, total){
     h += '<div class="legmedia"><span>Promedio comunal · '+donde+'</span><b>'+num(vc.x, v)+'</b>'+
       '<small>'+vc.base+(vc.med!==undefined ? ' · mediana de los polígonos: '+num(vc.med, v) : '')+'</small></div>';
   }
-  h += '<div class="legnote">'+v.d+(v.cat ? ' Cortes calculados dentro de ' : v.pond ? ' Quintiles ponderados por la población de 18 años o más, calculados dentro de ' : ' Tramos calculados dentro de ')+nom+'.'+(st.rural ? ' Las entidades rurales van con color más tenue.' : '')+'</div>';
+  if(v.fijo && porCut[st.cut].qrm){
+    // cómo se reparte la población de 18+ de la comuna en los quintiles de la RM (20% en cada uno si fuera como la región)
+    var q = porCut[st.cut].qrm;
+    h += '<div class="qbar-t">Población de 18+ de '+nom+' en cada quintil de la RM</div><div class="qbar">';
+    q.forEach(function(p,i){ if(p>0) h += '<i style="width:'+p+'%;background:'+RAMP[i]+'" title="Quintil '+(i+1)+': '+p.toFixed(1).replace('.',',')+'%"></i>'; });
+    h += '</div><div class="qbar-n"><span>Q1 '+q[0].toFixed(0)+'%</span><span>Q5 '+q[4].toFixed(0)+'%</span></div>';
+  }
+  h += '<div class="legnote">'+v.d+(v.fijo ? ' Quintiles ponderados por la población de 18 años o más de toda la Región Metropolitana' : (v.cat ? ' Cortes calculados dentro de ' : v.pond ? ' Quintiles ponderados por la población de 18 años o más, calculados dentro de ' : ' Tramos calculados dentro de ')+nom)+'.'+(st.rural ? ' Las entidades rurales van con color más tenue.' : '')+'</div>';
   var vobj = boxRight.querySelector('.vobj');
   vobj.hidden = !v.cat;
   if(v.cat){
@@ -499,14 +511,20 @@ var limites = {};
 var capaLim = L.layerGroup().addTo(map);
 COMUNAS.forEach(function(c){
   var l = L.geoJSON(c.g, {pane:'limites', renderer:rendLim, style: function(){ return estiloLim(c.cut); }});
-  l.bindTooltip('<span class="tt-title">'+c.n+'</span><span class="tt-sub">'+fmt(c.per)+' personas · click para ver sus manzanas</span>', {sticky:true});
+  l.bindTooltip(function(){
+    var h = '<span class="tt-title">'+c.n+'</span><span class="tt-sub">'+fmt(c.per)+' personas · click para ver sus manzanas</span>';
+    if(st.v.fijo && c.irm!==null) h += '<div class="tt-grid"><span class="on">Índice RM, promedio</span><b class="on">'+c.irm.toFixed(2).replace('.',',')+'</b><span>En el quintil 5 de la RM</span><b>'+c.qrm[4].toFixed(1).replace('.',',')+'%</b><span>En el quintil 1 de la RM</span><b>'+c.qrm[0].toFixed(1).replace('.',',')+'%</b></div>';
+    return h;
+  }, {sticky:true});
   l.on('click', function(){ if(c.cut!==st.cut) elegir(c.cut); });
   l.on('mouseover', function(){ if(c.cut!==st.cut) l.setStyle({fillOpacity:.12, fillColor:'#fa4800'}); });
   l.on('mouseout', function(){ l.setStyle(estiloLim(c.cut)); });
   limites[c.cut] = l; capaLim.addLayer(l);
 });
+function colorRM(x){ for(var i=0;i<CORTES_RM.length;i++){ if(x < CORTES_RM[i]) return RAMP[i]; } return RAMP[4]; }
 function estiloLim(cut){
-  var sel = cut===st.cut;
+  var sel = cut===st.cut, c = porCut[cut];
+  if(st.v.fijo && !sel && c.irm!==null) return {color:'#ffffff', weight:1, opacity:.9, fill:true, fillColor:colorRM(c.irm), fillOpacity:.62, interactive:true};
   // la comuna elegida queda sin relleno para que no capture el mouse sobre sus manzanas
   return {color:'#162246', weight: sel ? 2.4 : .9, opacity: sel ? .9 : .55, fill: !sel, fillColor:'#162246', fillOpacity: .03, interactive: !sel};
 }
@@ -543,13 +561,14 @@ function render(mover){
   varBtns.forEach(function(b){ b.setAttribute('aria-pressed', VARS[+b.getAttribute('data-i')]===st.v ? 'true' : 'false'); });
   tabBtns.forEach(function(b){ b.setAttribute('aria-selected', b.getAttribute('data-p')===st.pest ? 'true' : 'false'); });
   boxRight.querySelectorAll('.vlist').forEach(function(l){ l.hidden = l.getAttribute('data-p')!==st.pest; });
+  Object.keys(limites).forEach(function(k){ limites[k].setStyle(estiloLim(+k)); });
   var D = DATOS[st.cut]; if(!D) return;
 
   var filas = D.mz.filter(function(r){ return st.rural || r.t==='M'; });
   filasVis = filas;
   obj = calcObj(filas);
   var vals = filas.map(function(r){ return r.v[st.v.k]; }).filter(function(x){ return x!==null && x!==undefined; });
-  breaks = st.v.pond
+  breaks = st.v.fijo ? CORTES_RM.slice() : st.v.pond
     ? quintilesPond(filas.filter(function(r){ var x = r.v[st.v.k]; return x!==null && x!==undefined; }).map(function(r){ return [r.v[st.v.k], r.v[KW]]; }))
     : quintiles(vals);
   capaPol.clearLayers();
