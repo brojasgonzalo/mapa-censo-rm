@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Censo 2024 RM por manzana | Agenda Pública</title>
+<meta name="description" content="Caracterización de la Región Metropolitana por manzana con el Censo de Población y Vivienda 2024. Agenda Pública Consultores.">
+<link rel="icon" href="img/isotipo.png">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=gambarino@400&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --navy:#162246; --violeta:#646496; --naranja:#fa4800; --naranja-2:#d63d00;
+  --fondo:#f5f5f5; --surface:#ffffff; --surface-2:#eef0f4;
+  --ink:#162246; --ink-2:#3d4663; --ink-3:#6b7189; --line:#dcdee5;
+  --serif:"Gambarino", Georgia, "Times New Roman", serif;
+  --sans:"Satoshi", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--fondo);color:var(--ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--violeta)}
+button{font-family:inherit}
+
+/* ---------- portada: azul marino a la izquierda, patrón de la marca a la derecha (como la lámina 7) */
+.hero{background:var(--navy);color:#fff;display:grid;grid-template-columns:minmax(0,1fr) 34%;min-height:340px}
+.hero-txt{padding:34px 48px 40px;display:flex;flex-direction:column;gap:18px;max-width:880px}
+.hero-txt .logo{height:38px;width:auto;align-self:flex-start}
+.eyebrow{font:700 11.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--naranja);margin-top:28px}
+.hero h1{font:400 clamp(34px,4.6vw,56px)/1.04 var(--serif);margin:0;letter-spacing:-.01em}
+.hero p{margin:0;max-width:620px;color:#c9cee0;font-size:16px}
+.hero-pat{background:url(img/patron.png) 0 0/200px auto repeat}
+.cifras{display:flex;flex-wrap:wrap;gap:10px 34px;margin-top:6px}
+.cifras div{display:flex;flex-direction:column}
+.cifras b{font:400 30px/1.1 var(--serif);color:#fff}
+.cifras span{font-size:12px;color:#9aa3c2}
+
+main{max-width:1320px;margin:0 auto;padding:34px 24px 10px}
+.card{background:var(--surface);border:1px solid var(--line);padding:22px 22px 18px;position:relative}
+.card::before{content:"";position:absolute;left:-1px;top:-1px;bottom:-1px;width:5px;background:var(--naranja)}
+.card-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.card-head h2{font:400 30px/1.1 var(--serif);margin:0;color:var(--navy)}
+.card-head .sub{font-size:13px;color:var(--ink-3);margin-top:4px}
+
+/* ---------- controles */
+.ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-bottom:12px}
+.ctrl label{font:700 11px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.sel{position:relative}
+.sel select{appearance:none;-webkit-appearance:none;border:1.5px solid var(--navy);background:#fff;color:var(--navy);font:700 14px var(--sans);padding:8px 36px 8px 12px;min-width:240px;cursor:pointer;border-radius:0}
+.sel::after{content:"";position:absolute;right:13px;top:50%;width:8px;height:8px;border-right:2px solid var(--naranja);border-bottom:2px solid var(--naranja);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.sel select:focus-visible{outline:2px solid var(--naranja);outline-offset:2px}
+.toggles{display:flex;flex-wrap:wrap;gap:6px}
+.tg{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:#fff;color:var(--ink-2);font:500 13px var(--sans);padding:6px 11px;cursor:pointer;border-radius:0}
+.tg .sq{width:11px;height:11px;border:1.5px solid var(--ink-3);display:inline-block}
+.tg[aria-pressed="true"]{border-color:var(--navy);color:var(--navy)}
+.tg[aria-pressed="true"] .sq{background:var(--naranja);border-color:var(--naranja)}
+.tg:hover{border-color:var(--ink-3)}
+.hint{font-size:12px;color:var(--ink-3)}
+
+/* ---------- mapa y cuadros */
+.mapwrap{position:relative}
+#censomap{height:640px;width:100%;border:1px solid var(--line);background:var(--surface-2)}
+.leaflet-container{font-family:var(--sans)}
+.ovl{position:absolute;z-index:500;background:rgba(255,255,255,.96);border:1px solid var(--line);box-shadow:0 2px 10px rgba(22,34,70,.08);padding:12px 13px}
+.ovl.izq{top:12px;left:12px;width:250px;max-height:calc(100% - 24px);overflow:auto}
+.ovl.der{top:12px;right:12px;width:248px;max-height:calc(100% - 24px);overflow:auto}
+.ovl h4{font:400 19px/1.15 var(--serif);margin:0 0 8px;color:var(--navy)}
+.legrow{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);padding:1.5px 0}
+.legrow i{width:15px;height:11px;flex:none;border:1px solid rgba(22,34,70,.12)}
+.legnote{font-size:11px;color:var(--ink-3);margin-top:8px;line-height:1.45}
+.legmedia{margin-top:10px;padding:8px 9px;background:var(--surface-2);border-left:3px solid var(--naranja)}
+.legmedia span{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.legmedia b{display:block;font:400 22px/1.2 var(--serif);color:var(--navy)}
+.legmedia small{display:block;font-size:10.5px;color:var(--ink-3);line-height:1.4}
+.vtabs{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:10px}
+.vtab{border:1.5px solid var(--navy);background:transparent;color:var(--navy);font:700 11.5px var(--sans);padding:6px 4px;cursor:pointer;border-radius:0}
+.vtab:hover{background:var(--surface-2)}
+.vtab[aria-selected="true"]{background:var(--navy);color:#fff}
+.vlist[hidden],.vedad[hidden],.vobj[hidden]{display:none}
+.varbtn{display:block;width:100%;text-align:left;border:0;border-left:3px solid transparent;background:transparent;color:var(--ink-2);font:500 13px/1.3 var(--sans);padding:5px 8px;cursor:pointer}
+.varbtn:hover{background:var(--surface-2);color:var(--navy)}
+.varbtn[aria-pressed="true"]{border-left-color:var(--naranja);background:var(--surface-2);color:var(--navy);font-weight:700}
+.vnote{font-size:11px;color:var(--ink-3);margin-top:8px;line-height:1.45}
+.vtr{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--line);background:#fff;color:var(--ink-2);font:500 11.5px var(--sans);padding:3px 7px;margin:5px 4px 0 0;cursor:pointer}
+.vtr .sq{width:9px;height:9px;border:1.5px solid var(--ink-3)}
+.vtr[aria-pressed="true"]{border-color:var(--navy);color:var(--navy)}
+.vtr[aria-pressed="true"] .sq{background:var(--naranja);border-color:var(--naranja)}
+.cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:600;background:rgba(245,245,245,.7);font-weight:700;color:var(--navy);pointer-events:none}
+.cargando[hidden]{display:none}
+.oculta-btn{position:absolute;z-index:500;bottom:12px;right:12px;border:1.5px solid var(--navy);background:#fff;color:var(--navy);font:700 12px var(--sans);padding:6px 10px;cursor:pointer}
+.mapwrap.sin-cuadros .ovl{display:none}
+
+/* tooltips */
+.leaflet-tooltip{border-radius:0;border:1px solid var(--line);box-shadow:0 3px 12px rgba(22,34,70,.15);padding:9px 11px;font-family:var(--sans);color:var(--ink);max-width:300px;white-space:normal}
+.tt-title{display:block;font:400 16px/1.2 var(--serif);color:var(--navy)}
+.tt-sub{display:block;font-size:11.5px;color:var(--ink-3);margin:2px 0 6px}
+.tt-grid{display:grid;grid-template-columns:auto auto;gap:2px 12px;font-size:12px;min-width:220px}
+.tt-grid span{color:var(--ink-3)}
+.tt-grid b{text-align:right;font-weight:700;color:var(--ink-2)}
+.tt-grid .on{color:var(--naranja-2);font-weight:700}
+.tt-warn{margin-top:6px;font-size:11px;color:var(--naranja-2)}
+
+.notas{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:20px}
+.notas p{margin:0;font-size:12.5px;line-height:1.6;color:var(--ink-2)}
+.notas b{color:var(--navy)}
+
+footer{margin-top:38px}
+.foot-pat{height:56px;background:url(img/patron.png) 0 0/120px auto repeat}
+.foot{background:var(--navy);color:#9aa3c2;font-size:12.5px;padding:22px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.foot img{height:28px;width:auto}
+
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr}
+  .hero-pat{height:70px;order:-1}
+  .hero-txt{padding:26px 16px 30px}
+  main{padding:22px 16px 6px}
+  .card{padding:16px 14px 14px}
+  #censomap{height:460px}
+  .ovl{position:static;width:auto!important;max-height:none;box-shadow:none;margin-top:10px}
+  .oculta-btn{display:none}
+  .sel select{min-width:0;width:100%}
+  .sel{flex:1 1 220px}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-txt">
+    <img class="logo" src="img/logo_h_blanco.png" alt="Agenda Pública">
+    <div class="eyebrow">Censo de Población y Vivienda 2024</div>
+    <h1>La Región Metropolitana, manzana por manzana</h1>
+    <p>Cómo es la población, los hogares y las viviendas de cada manzana urbana y entidad rural de las 52 comunas de la región, con los datos del INE.</p>
+    <div class="cifras" id="cifras"></div>
+  </div>
+  <div class="hero-pat" aria-hidden="true"></div>
+</header>
+
+<main>
+  <section class="card" id="panel-censo">
+    <div class="card-head">
+      <div><h2 id="titulo">Caracterización por manzana</h2><div class="sub">Manzanas urbanas y entidades rurales, Censo 2024 (INE).</div></div>
+    </div>
+    <div class="ctrl">
+      <label for="selComuna">Comuna</label>
+      <div class="sel"><select id="selComuna"></select></div>
+      <div class="toggles" id="toggles"></div>
+      <span class="hint">También puedes elegir la comuna haciendo click en el mapa.</span>
+    </div>
+    <div class="mapwrap" id="mapwrap">
+      <div id="censomap"></div>
+      <div class="ovl izq" id="boxLeft"></div>
+      <div class="ovl der" id="boxRight"></div>
+      <button class="oculta-btn" id="btnOcultar" type="button">Ocultar cuadros</button>
+      <div class="cargando" id="cargando">Cargando manzanas…</div>
+    </div>
+    <div class="notas">
+      <p><b>Sobre los datos.</b> Fuente: cartografía censal y base manzana-entidad del Censo de Población y Vivienda 2024 (INE). El INE oculta las cifras de personas con menos de 4 casos por manzana (afecta sobre todo a inmigrantes); esas manzanas aparecen en gris, no como cero. Los datos de hogares y viviendas no se suprimen. Todos los indicadores son agregados por manzana: el INE no publica datos de cada hogar o persona a este nivel.</p>
+      <p><b>Límites y supuestos.</b> Las manzanas con 1 a 3 viviendas ocupadas fueron unidas por el INE con una vecina. Los límites de las entidades rurales son polígonos de Thiessen trazados por el INE alrededor de las viviendas censadas: son una referencia estadística, no límites reales en terreno. Las personas en situación de calle y de operativos especiales solo están a nivel comunal y no aparecen en el mapa. En manzanas con pocos habitantes un porcentaje cambia mucho con una o dos personas; el detalle avisa cuando la manzana tiene menos de 20 personas.</p>
+      <p><b>Índice y nivel alto con NNA.</b> El índice socioeconómico se estandariza dentro de cada comuna, así que muestra la posición de cada manzana respecto de su propia comuna y no es comparable entre comunas. Nivel alto con NNA marca los polígonos en los quintiles 4 y 5 del índice de su comuna que, a la vez, están en el 40% de mayor densidad de NNA por hectárea en los tramos de edad elegidos. Los colegios son los del Directorio Oficial Mineduc 2025, con matrícula y en funcionamiento.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="foot-pat" aria-hidden="true"></div>
+  <div class="foot">
+    <img src="img/logo_h_blanco.png" alt="Agenda Pública">
+    <span>Fuente: INE, Censo de Población y Vivienda 2024 · Mineduc, Directorio Oficial de Establecimientos 2025</span>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="datos/comunas.js"></script>
+<script>
+(function(){
+'use strict';
+// versión de los archivos de datos: cambiarla cada vez que se regeneran con prep_manzanas_rm.py
+var DATOS_VERSION = '2026-10-15';
+var DEFAULT_CUT = 13101; // Santiago
+
+var fmt = function(x){ return x===null || x===undefined ? '' : Math.round(x).toLocaleString('es-CL'); };
+function heln(tag, attrs){ var e = document.createElement(tag); for(var k in (attrs||{})) e.setAttribute(k, attrs[k]); return e; }
+var $ = function(id){ return document.getElementById(id); };
+
+// ---- cifras de la portada
+(function(){
+  var per = 0, pol = 0; COMUNAS.forEach(function(c){ per += c.per; pol += c.nm + c.ne; });
+  $('cifras').innerHTML = '<div><b>52</b><span>comunas</span></div><div><b>'+(per/1e6).toFixed(2).replace('.',',')+' millones</b><span>personas censadas en manzanas y entidades</span></div><div><b>'+fmt(pol)+'</b><span>polígonos con datos</span></div>';
+})();
+
+if(typeof L === 'undefined'){ $('censomap').innerHTML = '<p style="padding:30px">No se pudo cargar la librería del mapa.</p>'; return; }
+
+// Indicadores por pestaña del cuadro derecho. La clave (key) es la de prep_manzanas_rm.py: su posición en el arreglo
+// v de cada polígono se busca en MZK.
+var PESTANAS = [
+  {id:'pob', n:'Población', nota:'Menores de 18 = 0 a 17 años. El INE publica las edades en tramos (0-5, 6-13, 14-17, 18-24). NNA por hectárea suma los tramos de edad que se eligen en este cuadro.'},
+  {id:'viv', n:'Hogar y vivienda', nota:'Hacinamiento, allegamiento, materialidad y servicios se calculan sobre las viviendas ocupadas con moradores presentes; tenencia y calefacción, sobre los hogares.'},
+  {id:'gse', n:'Socioeconómico', nota:''},
+  {id:'comp', n:'Composición', nota:'Estado civil: personas de 15 años o más. Hogares con menores = con al menos una persona de 0 a 14 años, así lo publica el INE.'}
+];
+var VARS = [
+  {p:'pob', key:'men18', n:'Menores de 18 años', d:'Personas de 0 a 17 años, sobre el total de personas.'},
+  {p:'pob', key:'nna', n:'NNA por hectárea', u:' por ha', d:''},
+  {p:'pob', key:'men6', n:'Niños de 0 a 5 años', d:'Personas de 0 a 5 años, sobre el total de personas.'},
+  {p:'pob', key:'may60', n:'60 años o más', d:'Personas de 60 años o más, sobre el total de personas.'},
+  {p:'pob', key:'edad', n:'Edad promedio', u:' años', d:'Edad promedio de las personas censadas.'},
+  {p:'pob', key:'inm', n:'Inmigrantes', d:'Personas nacidas fuera de Chile, sobre el total de personas. Muy afectado por la supresión del INE.'},
+
+  {p:'viv', key:'perhog', n:'Personas por hogar', u:'', dec:2, d:'Promedio de personas por hogar.'},
+  {p:'viv', key:'prop', n:'Hogares propietarios', d:'Hogares en vivienda propia, pagada o pagándose, sobre el total de hogares.'},
+  {p:'viv', key:'arr', n:'Hogares que arriendan', d:'Hogares que arriendan su vivienda, con o sin contrato, sobre el total de hogares.'},
+  {p:'viv', key:'desoc', n:'Viviendas desocupadas', d:'Viviendas particulares desocupadas (en venta, arriendo, temporada u otro motivo), sobre el total de viviendas particulares.'},
+  {p:'viv', key:'depto', n:'Departamentos', d:'Viviendas que son departamento, sobre las viviendas ocupadas.'},
+  {p:'viv', key:'dorm4', n:'4 dormitorios o más', d:'Viviendas con 4 o más dormitorios, sobre las viviendas ocupadas.'},
+  {p:'viv', key:'hacin', n:'Viviendas hacinadas', d:'Viviendas hacinadas (definición INE), sobre las viviendas ocupadas.'},
+  {p:'viv', key:'alleg', n:'Hogares allegados', d:'Hogares allegados (más de un hogar en la misma vivienda), por cada 100 viviendas ocupadas.'},
+  {p:'viv', key:'irrec', n:'Viviendas irrecuperables', d:'Viviendas irrecuperables por su materialidad o tipo (definición INE), sobre las viviendas ocupadas.'},
+  {p:'viv', key:'precar', n:'Paredes precarias', d:'Viviendas con paredes de tabique sin forro, adobe, barro u otros artesanales, o materiales de desecho, sobre las viviendas ocupadas.'},
+  {p:'viv', key:'alcant', n:'Con alcantarillado', d:'Viviendas con baño dentro de la vivienda conectado al alcantarillado, sobre las viviendas ocupadas.'},
+  {p:'viv', key:'elec', n:'Calefacción eléctrica', d:'Hogares que calefaccionan con electricidad, sobre el total de hogares.'},
+
+  {p:'gse', key:'ise', n:'Índice socioeconómico (proxy)', u:'', dec:2, pond:true, d:'Promedio de puntajes estandarizados de 7 componentes: escolaridad, educación superior, directivos y profesionales, computador en el hogar y, en negativo, hacinamiento, paredes precarias y allegamiento. Los puntajes usan la media y la desviación estándar de la comuna, ponderadas por su población de 18 años o más: 0 = adulto promedio de la comuna. No es comparable entre comunas.'},
+  {p:'gse', key:'obj', n:'Nivel alto con NNA', cat:true, d:''},
+  {p:'gse', key:'esc', n:'Escolaridad promedio', u:' años', pond:true, d:'Años de escolaridad promedio de las personas de 18 años o más.'},
+  {p:'gse', key:'sup', n:'Educación superior', d:'Personas con educación terciaria, maestría o doctorado, sobre las personas de 18 años o más.'},
+  {p:'gse', key:'prof', n:'Directivos y profesionales', d:'Ocupados como directores, gerentes o profesionales (CIUO 1 y 2), sobre el total de ocupados.'},
+  {p:'gse', key:'elem', n:'Ocupaciones elementales', d:'Ocupados en ocupaciones elementales (CIUO 9), sobre el total de ocupados.'},
+  {p:'gse', key:'desocup', n:'Desocupación', d:'Personas desocupadas, sobre la fuerza de trabajo (ocupados más desocupados).'},
+  {p:'gse', key:'compu', n:'Hogares con computador', d:'Hogares con computador, sobre el total de hogares.'},
+  {p:'gse', key:'inet', n:'Hogares con internet fija', d:'Hogares con internet fija, sobre el total de hogares.'},
+
+  {p:'comp', key:'casado', n:'Casados', d:'Personas casadas, sobre las personas de 15 años o más.'},
+  {p:'comp', key:'conviv', n:'Convivientes sin acuerdo', d:'Personas que conviven en pareja sin acuerdo de unión civil, sobre las personas de 15 años o más.'},
+  {p:'comp', key:'auc', n:'Conviviente civil (AUC)', d:'Personas con acuerdo de unión civil, sobre las personas de 15 años o más.'},
+  {p:'comp', key:'sepdiv', n:'Separados o divorciados', d:'Personas anuladas, separadas o divorciadas, sobre las personas de 15 años o más.'},
+  {p:'comp', key:'viudo', n:'Viudos', d:'Personas viudas, sobre las personas de 15 años o más.'},
+  {p:'comp', key:'soltero', n:'Solteros', d:'Personas solteras, sobre las personas de 15 años o más.'},
+  {p:'comp', key:'unip', n:'Hogares unipersonales', d:'Hogares de una sola persona, sobre el total de hogares.'},
+  {p:'comp', key:'hogmen', n:'Hogares con menores', d:'Hogares con al menos una persona de 0 a 14 años, sobre el total de hogares.'},
+  {p:'comp', key:'hog60', n:'Hogares solo de 60 o más', d:'Hogares compuestos solo por personas de 60 años o más, sobre el total de hogares.'},
+  {p:'comp', key:'jefm', n:'Jefatura femenina', d:'Hogares con jefa de hogar mujer, sobre el total de hogares.'}
+];
+VARS.forEach(function(v){ if(v.u===undefined) v.u = '%'; if(v.dec===undefined) v.dec = 1; v.k = 2 + MZK.indexOf(v.key); });
+var KW = 2 + MZK.indexOf('w'), KI = 2 + MZK.indexOf('ise'), KH = 2 + MZK.indexOf('ha');
+// NNA, NNA por hectárea y la categoría de nivel alto con NNA van en tres posiciones nuevas al final de v
+var KNN = 2 + MZK.length, KN = KNN + 1, KO = KN + 1;
+var VNNA = VARS.filter(function(v){ return v.key==='nna'; })[0]; VNNA.k = KN;
+var VOBJ = VARS.filter(function(v){ return v.key==='obj'; })[0]; VOBJ.k = KO;
+
+// rampa de la marca: del lila claro al violeta del logo y al azul marino, con saltos de luminosidad parejos
+var RAMP = ['#ecebf4','#c4c3dc','#9493bd','#646496','#162246'];
+var NODATA = '#c3c5cc';
+var CATC = [RAMP[0], RAMP[2], '#fa4800'];
+var CATN = ['Quintil 1 a 3 del índice', 'Quintil 4 o 5, menor densidad de NNA', 'Quintil 4 o 5 y alta densidad de NNA'];
+var DEPE = {'Municipal / SLEP':{f:'#ffffff',s:'#fa4800'}, 'Part. subvencionado':{f:'#ffffff',s:'#162246'}, 'Part. pagado':{f:'#162246',s:'#ffffff'}, 'Adm. delegada':{f:'#8a8f9e',s:'#ffffff'}};
+var TRAMOS = [['n05',0,5],['n613',6,13],['n1417',14,17]];
+
+var st = {cut: DEFAULT_CUT, v: VARS[0], pest:'pob', colegios:false, rural:false, tr:{n05:true, n613:true, n1417:false}};
+var DATOS = {};            // datos por comuna ya cargados: {mz:[...], col:[...]}
+var porCut = {}; COMUNAS.forEach(function(c){ porCut[c.cut] = c; });
+var num = function(x,v){ return x.toFixed(v.dec).replace('.',',') + v.u; };
+
+function edades(){
+  var g = [];
+  TRAMOS.forEach(function(t){
+    if(!st.tr[t[0]]) return;
+    var u = g[g.length-1];
+    if(u && u[1]===t[1]-1) u[1] = t[2]; else g.push([t[1],t[2]]);
+  });
+  return g.map(function(x){ return x[0]+' a '+x[1]; }).join(' y ')+' años';
+}
+
+// ---- selector de comunas, agrupado por provincia
+var sel = $('selComuna');
+(function(){
+  var prov = {};
+  COMUNAS.forEach(function(c){ (prov[c.prov] = prov[c.prov] || []).push(c); });
+  var orden = Object.keys(prov).sort(function(a,b){ return a==='Santiago' ? -1 : b==='Santiago' ? 1 : a.localeCompare(b,'es'); });
+  orden.forEach(function(p){
+    var og = heln('optgroup',{label:'Provincia de '+p});
+    prov[p].sort(function(a,b){ return a.n.localeCompare(b.n,'es'); }).forEach(function(c){
+      var o = heln('option',{value:c.cut}); o.textContent = c.n; og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+  sel.addEventListener('change', function(){ elegir(+sel.value); });
+})();
+
+// ---- capas opcionales
+var toggles = $('toggles');
+function toggle(label, key){
+  var b = heln('button',{class:'tg',type:'button','aria-pressed':'false'});
+  b.innerHTML = '<span class="sq"></span>'+label;
+  b.addEventListener('click', function(){ st[key] = !st[key]; render(false); });
+  toggles.appendChild(b); return b;
+}
+var bRur = toggle('Entidades rurales','rural');
+var bCol = toggle('Colegios 2025','colegios');
+$('btnOcultar').addEventListener('click', function(){
+  var w = $('mapwrap'); w.classList.toggle('sin-cuadros');
+  this.textContent = w.classList.contains('sin-cuadros') ? 'Mostrar cuadros' : 'Ocultar cuadros';
+});
+
+// ---- cuadro derecho: pestañas e indicadores
+var boxLeft = $('boxLeft'), boxRight = $('boxRight'), varBtns = [], tabBtns = [];
+(function(){
+  var h = '<div class="vtabs" role="tablist">';
+  PESTANAS.forEach(function(p){ h += '<button type="button" class="vtab" role="tab" data-p="'+p.id+'">'+p.n+'</button>'; });
+  h += '</div>';
+  PESTANAS.forEach(function(p){
+    h += '<div class="vlist" data-p="'+p.id+'">';
+    VARS.forEach(function(v,i){ if(v.p===p.id) h += '<button type="button" class="varbtn" data-i="'+i+'">'+v.n+'</button>'; });
+    h += (p.nota ? '<div class="vnote">'+p.nota+'</div>' : '')+'</div>';
+  });
+  h += '<div class="vedad" hidden><div class="vnote">Edades de los NNA:</div>';
+  TRAMOS.forEach(function(t,i){ h += '<button type="button" class="vtr" data-t="'+i+'"><span class="sq"></span>'+t[1]+' a '+t[2]+'</button>'; });
+  h += '</div><div class="vnote vobj" hidden></div>';
+  boxRight.innerHTML = h;
+  boxRight.querySelectorAll('.vtr').forEach(function(b){
+    var t = TRAMOS[+b.getAttribute('data-t')];
+    b.addEventListener('click', function(){
+      st.tr[t[0]] = !st.tr[t[0]];
+      if(!TRAMOS.some(function(x){ return st.tr[x[0]]; })) st.tr[t[0]] = true;
+      calcNNA(); render(false);
+    });
+  });
+  boxRight.querySelectorAll('.varbtn').forEach(function(b){
+    varBtns.push(b);
+    b.addEventListener('click', function(){ st.v = VARS[+b.getAttribute('data-i')]; render(false); });
+  });
+  boxRight.querySelectorAll('.vtab').forEach(function(b){
+    tabBtns.push(b);
+    b.addEventListener('click', function(){
+      var p = b.getAttribute('data-p'); if(p===st.pest) return;
+      st.pest = p; st.v = VARS.filter(function(v){ return v.p===p; })[0]; render(false);
+    });
+  });
+})();
+
+// ---- cálculos (idénticos al mapa del Estudio Puerto Varas)
+var breaks = [], obj = null, filasVis = [];
+function quintiles(vals){
+  vals = vals.slice().sort(function(a,b){ return a-b; });
+  var q = [];
+  for(var i=1;i<5;i++){ var x = vals[Math.floor(i*vals.length/5)]; if(x!==undefined && x>vals[0] && q.indexOf(x)<0) q.push(x); }
+  return q;
+}
+// quintiles ponderados por población de 18+ (índice y escolaridad)
+function quintilesPond(pares){
+  pares = pares.filter(function(p){ return p[1]>0; }).sort(function(a,b){ return a[0]-b[0]; });
+  var total = 0; pares.forEach(function(p){ total += p[1]; });
+  var q = [], cw = 0, sig = 1;
+  for(var i=0;i<pares.length && sig<5;i++){
+    if(i===0 || pares[i][0]!==pares[i-1][0]){
+      var x = pares[i][0];
+      while(sig<5 && 5*cw >= sig*total){ q.push(x); sig++; }
+    }
+    cw += pares[i][1];
+  }
+  return q;
+}
+function rampa(i){ if(st.v.pond) return RAMP[i]; var n = breaks.length+1; return RAMP[n===1 ? 2 : Math.round(i*4/(n-1))]; }
+function colorDe(x){
+  if(x===null || x===undefined) return null;
+  if(st.v.cat) return CATC[x];
+  for(var i=0;i<breaks.length;i++){ if(x < breaks[i]) return rampa(i); }
+  return rampa(breaks.length);
+}
+function estilo(r, activo){
+  var c = colorDe(r.v[st.v.k]);
+  var e = {color: activo ? '#fa4800' : (r.t==='E' ? '#6b7189' : '#ffffff'), weight: activo ? 2.5 : (r.t==='E' ? .8 : .5),
+          fillColor: c || NODATA, fillOpacity: (c ? .82 : .55) * (r.t==='E' ? .6 : 1), dashArray: r.t==='E' ? '3 2' : null};
+  if(st.v.cat && r.v[KO]===2 && !activo){ e.color = '#162246'; e.weight = 1.4; }
+  return e;
+}
+function calcNNA(){
+  Object.keys(DATOS).forEach(function(cut){
+    DATOS[cut].mz.forEach(function(r){
+      var n = 0; TRAMOS.forEach(function(t){ if(st.tr[t[0]]) n += r.v[2+MZK.indexOf(t[0])] || 0; });
+      r.v[KNN] = n; r.v[KN] = r.v[KH]>0 ? Math.round(n/r.v[KH]*10)/10 : null;
+    });
+  });
+  VNNA.d = 'Niños, niñas y adolescentes de '+edades()+' por hectárea de superficie del polígono.';
+  VOBJ.d = 'Cruza el índice socioeconómico (quintiles ponderados) con el 40% de polígonos con más NNA de '+edades()+' por hectárea.';
+}
+function calcObj(filas){
+  var bI = quintilesPond(filas.filter(function(r){ var x = r.v[KI]; return x!==null && x!==undefined; }).map(function(r){ return [r.v[KI], r.v[KW]]; }));
+  var tot = 0; filas.forEach(function(r){ tot += r.v[KNN] || 0; });
+  if(bI.length < 4){ filas.forEach(function(r){ r.v[KO] = null; }); return {n:0, nna:0, tot:tot, sinIse:true}; }
+  var dens = filas.map(function(r){ return r.v[KN]; }).filter(function(x){ return x!==null && x!==undefined; }).sort(function(a,b){ return a-b; });
+  var cN = dens[Math.floor(3*dens.length/5)];
+  var o = {n:0, nna:0, tot:tot};
+  filas.forEach(function(r){
+    var i = r.v[KI], d = r.v[KN];
+    if(i===null || i===undefined){ r.v[KO] = null; return; }
+    r.v[KO] = i<bI[2] ? 0 : (d!==null && d!==undefined && d>=cN && d>0 ? 2 : 1);
+    if(r.v[KO]===2){ o.n++; o.nna += r.v[KNN] || 0; }
+  });
+  return o;
+}
+function tooltip(r){
+  var h = '<span class="tt-title">'+(r.t==='M' ? 'Manzana' : 'Entidad rural')+(r.nom ? ' · '+r.nom : '')+'</span>'+
+    '<span class="tt-sub">'+fmt(r.v[0])+' personas · '+fmt(r.v[1])+' viviendas particulares</span><div class="tt-grid">';
+  VARS.forEach(function(v){
+    if(v.p!==st.pest) return;
+    var x = r.v[v.k], cls = v===st.v ? ' class="on"' : '';
+    h += '<span'+cls+'>'+v.n+'</span><b'+cls+'>'+(x===null || x===undefined ? '<span style="color:#9aa0b0;font-weight:500">sin dato</span>' : (v.cat ? CATN[x] : num(x,v))+(v.key==='nna' ? ' ('+fmt(r.v[KNN])+')' : ''))+'</b>';
+  });
+  h += '</div>';
+  if(r.v[0] < 20) h += '<div class="tt-warn">Menos de 20 personas: los porcentajes son poco estables.</div>';
+  return h;
+}
+var BASE_P = ['men18','men6','may60','inm','edad'];
+var BASE_W = ['esc','sup','prof','elem','desocup','casado','conviv','auc','sepdiv','viudo','soltero'];
+function valorComunal(filas){
+  var v = st.v;
+  if(v.cat) return null;
+  if(v.key==='nna'){
+    var n = 0, ha = 0; filas.forEach(function(r){ if(r.v[KH]>0){ n += r.v[KNN]||0; ha += r.v[KH]; } });
+    return ha ? {x:n/ha, base:'total de NNA sobre el total de hectáreas'} : null;
+  }
+  var kw = BASE_P.indexOf(v.key)>=0 ? 0 : (BASE_W.indexOf(v.key)>=0 || v.key==='ise' ? KW : 1);
+  var sx = 0, sw = 0, xs = [];
+  filas.forEach(function(r){
+    var x = r.v[v.k], w = r.v[kw];
+    if(x===null || x===undefined) return;
+    xs.push(x);
+    if(w>0){ sx += x*w; sw += w; }
+  });
+  if(!sw) return null;
+  xs.sort(function(a,b){ return a-b; });
+  var med = xs.length%2 ? xs[(xs.length-1)/2] : (xs[xs.length/2-1]+xs[xs.length/2])/2;
+  return {x:sx/sw, med:med, base: kw===0 ? 'ponderado por personas' : kw===1 ? 'ponderado por viviendas' : 'ponderado por población de 18 años o más'};
+}
+
+function leyenda(nulos, total){
+  var v = st.v, h = '<h4>'+v.n+'</h4>', u = v.u, nom = porCut[st.cut].n;
+  var f = function(x){ return x.toFixed(v.dec).replace('.',',')+u; };
+  var tramo = function(i){
+    var a = i===0 ? null : breaks[i-1], b = i<breaks.length ? breaks[i] : null;
+    return a===null ? (b===null ? 'todas iguales' : 'menos de '+f(b)) : (b===null ? f(a)+' o más' : f(a)+' a menos de '+f(b));
+  };
+  if(v.cat && obj.sinIse){
+    h += '<div class="legnote">Sin dato en esta comuna: tiene muy pocos polígonos para estandarizar el índice.</div>';
+  } else if(v.cat){
+    for(var i=2;i>=0;i--) h += '<div class="legrow"><i style="background:'+CATC[i]+(i===2 ? ';outline:1.5px solid #162246' : '')+'"></i>'+CATN[i]+'</div>';
+  } else if(v.pond && !breaks.length){
+    h += '<div class="legnote">Sin dato en esta comuna.</div>';
+  } else if(v.pond){
+    var NQ = {4:'Quintil 5, 20% de mayor nivel', 0:'Quintil 1, 20% de menor nivel'};
+    for(var i=breaks.length;i>=0;i--){
+      if(i>0 && i<breaks.length && breaks[i-1]===breaks[i]) continue;
+      h += '<div class="legrow"><i style="background:'+rampa(i)+'"></i>'+(NQ[i] || 'Quintil '+(i+1))+': '+tramo(i)+'</div>';
+    }
+  } else {
+    for(var i=breaks.length;i>=0;i--) h += '<div class="legrow"><i style="background:'+rampa(i)+'"></i>'+tramo(i)+'</div>';
+  }
+  h += '<div class="legrow"><i style="background:'+NODATA+'"></i>Sin dato o suprimido ('+fmt(nulos)+' de '+fmt(total)+')</div>';
+  var vc = valorComunal(filasVis);
+  if(vc){
+    var donde = st.rural ? nom : nom+', zona urbana';
+    h += '<div class="legmedia"><span>Promedio comunal · '+donde+'</span><b>'+num(vc.x, v)+'</b>'+
+      '<small>'+vc.base+(vc.med!==undefined ? ' · mediana de los polígonos: '+num(vc.med, v) : '')+'</small></div>';
+  }
+  h += '<div class="legnote">'+v.d+(v.cat ? ' Cortes calculados dentro de ' : v.pond ? ' Quintiles ponderados por la población de 18 años o más, calculados dentro de ' : ' Tramos calculados dentro de ')+nom+'.'+(st.rural ? ' Las entidades rurales van con color más tenue.' : '')+'</div>';
+  var vobj = boxRight.querySelector('.vobj');
+  vobj.hidden = !v.cat;
+  if(v.cat){
+    vobj.innerHTML = '<b style="color:var(--navy)">Nivel alto con NNA</b><br>'+(obj.sinIse
+      ? 'No disponible en esta comuna: no tiene índice socioeconómico.'
+      : fmt(obj.n)+' polígonos de nivel alto y alta densidad, con '+fmt(obj.nna)+' NNA de '+edades()+' ('+
+        (obj.tot ? (100*obj.nna/obj.tot).toFixed(1).replace('.',',') : '0')+'% de los '+fmt(obj.tot)+' del mapa)');
+  }
+  if(st.colegios){
+    h += '<div class="legnote" style="color:var(--navy);font-weight:700;margin-top:10px">Colegios 2025</div>';
+    Object.keys(DEPE).forEach(function(d){ h += '<div class="legrow"><i style="background:'+DEPE[d].f+';border-radius:50%;width:11px;height:11px;border:2px solid '+(DEPE[d].s==='#ffffff' ? '#c3c5cc' : DEPE[d].s)+'"></i>'+d+'</div>'; });
+  }
+  boxLeft.innerHTML = h;
+}
+
+// ---- mapa
+var map = L.map('censomap', {preferCanvas:true, zoomControl:false, minZoom:8}).setView([-33.45,-70.66], 11);
+L.control.zoom({position:'bottomleft'}).addTo(map);
+// mapa base gris claro de Esri (sin clave de API), con los nombres de calles en una capa aparte encima de las manzanas
+var ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
+L.tileLayer(ESRI+'World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, maxNativeZoom:16,
+  attribution:'Esri, HERE, Garmin, &copy; OpenStreetMap · INE Censo 2024 · Mineduc'}).addTo(map);
+map.createPane('nombres').style.zIndex = 430; map.getPane('nombres').style.pointerEvents = 'none';
+L.tileLayer(ESRI+'World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {pane:'nombres', maxZoom:19, maxNativeZoom:16}).addTo(map);
+map.createPane('limites').style.zIndex = 420;
+map.createPane('colegios').style.zIndex = 450;
+// las capas sobre las manzanas van en SVG: un canvas encima taparía los tooltips de las manzanas
+var rendCol = L.svg({pane:'colegios'}), rendLim = L.svg({pane:'limites'});
+var capaPol = L.layerGroup().addTo(map), capaCol = L.layerGroup().addTo(map);
+// límites de las 52 comunas: click para cambiar de comuna
+var limites = {};
+var capaLim = L.layerGroup().addTo(map);
+COMUNAS.forEach(function(c){
+  var l = L.geoJSON(c.g, {pane:'limites', renderer:rendLim, style: function(){ return estiloLim(c.cut); }});
+  l.bindTooltip('<span class="tt-title">'+c.n+'</span><span class="tt-sub">'+fmt(c.per)+' personas · click para ver sus manzanas</span>', {sticky:true});
+  l.on('click', function(){ if(c.cut!==st.cut) elegir(c.cut); });
+  l.on('mouseover', function(){ if(c.cut!==st.cut) l.setStyle({fillOpacity:.12, fillColor:'#fa4800'}); });
+  l.on('mouseout', function(){ l.setStyle(estiloLim(c.cut)); });
+  limites[c.cut] = l; capaLim.addLayer(l);
+});
+function estiloLim(cut){
+  var sel = cut===st.cut;
+  // la comuna elegida queda sin relleno para que no capture el mouse sobre sus manzanas
+  return {color:'#162246', weight: sel ? 2.4 : .9, opacity: sel ? .9 : .55, fill: !sel, fillColor:'#162246', fillOpacity: .03, interactive: !sel};
+}
+
+function cargar(cut, listo){
+  if(DATOS[cut]) return listo();
+  $('cargando').hidden = false;
+  var sc = document.createElement('script');
+  sc.src = 'datos/c'+cut+'.js?v='+DATOS_VERSION;
+  sc.onload = function(){ $('cargando').hidden = true; listo(); };
+  sc.onerror = function(){ $('cargando').textContent = 'No se pudieron cargar los datos de la comuna.'; };
+  document.body.appendChild(sc);
+}
+// los archivos de cada comuna llaman a esta función al cargar
+window.censoComuna = function(cut, d){ DATOS[cut] = d; calcNNA(); };
+
+function elegir(cut){
+  if(!porCut[cut]) cut = DEFAULT_CUT;
+  st.cut = cut; sel.value = cut;
+  // la comuna queda en la dirección (#13201) para compartir el enlace
+  try{ history.replaceState(null, '', '#'+cut); }catch(e){}
+  Object.keys(limites).forEach(function(k){ limites[k].setStyle(estiloLim(+k)); });
+  cargar(cut, function(){ if(st.cut===cut) render(true); });
+}
+
+function render(mover){
+  var c = porCut[st.cut];
+  $('titulo').textContent = 'Caracterización por manzana, ' + c.n;
+  bRur.setAttribute('aria-pressed', st.rural ? 'true' : 'false');
+  bRur.disabled = !c.ne; bRur.style.opacity = c.ne ? 1 : .45; bRur.title = c.ne ? '' : 'Esta comuna no tiene entidades rurales';
+  bCol.setAttribute('aria-pressed', st.colegios ? 'true' : 'false');
+  boxRight.querySelector('.vedad').hidden = !(st.v.cat || st.v.key==='nna');
+  boxRight.querySelectorAll('.vtr').forEach(function(b){ b.setAttribute('aria-pressed', st.tr[TRAMOS[+b.getAttribute('data-t')][0]] ? 'true' : 'false'); });
+  varBtns.forEach(function(b){ b.setAttribute('aria-pressed', VARS[+b.getAttribute('data-i')]===st.v ? 'true' : 'false'); });
+  tabBtns.forEach(function(b){ b.setAttribute('aria-selected', b.getAttribute('data-p')===st.pest ? 'true' : 'false'); });
+  boxRight.querySelectorAll('.vlist').forEach(function(l){ l.hidden = l.getAttribute('data-p')!==st.pest; });
+  var D = DATOS[st.cut]; if(!D) return;
+
+  var filas = D.mz.filter(function(r){ return st.rural || r.t==='M'; });
+  filasVis = filas;
+  obj = calcObj(filas);
+  var vals = filas.map(function(r){ return r.v[st.v.k]; }).filter(function(x){ return x!==null && x!==undefined; });
+  breaks = st.v.pond
+    ? quintilesPond(filas.filter(function(r){ var x = r.v[st.v.k]; return x!==null && x!==undefined; }).map(function(r){ return [r.v[st.v.k], r.v[KW]]; }))
+    : quintiles(vals);
+  capaPol.clearLayers();
+  var bnd = L.latLngBounds([]);
+  filas.forEach(function(r){
+    var lyr = L.geoJSON(r.g, {style: function(){ return estilo(r,false); }});
+    lyr.bindTooltip(function(){ return tooltip(r); }, {sticky:true});
+    lyr.on('mouseover', function(){ lyr.setStyle(estilo(r,true)); });
+    lyr.on('mouseout', function(){ lyr.setStyle(estilo(r,false)); });
+    if(mover && r.t==='M') bnd.extend(lyr.getBounds());
+    capaPol.addLayer(lyr);
+  });
+
+  capaCol.clearLayers();
+  if(st.colegios){
+    D.col.slice().sort(function(a,b){ return b.m-a.m; }).forEach(function(k){
+      var dp = DEPE[k.d] || DEPE['Adm. delegada'];
+      L.circleMarker([k.lat,k.lon], {pane:'colegios', renderer:rendCol, radius: Math.max(4, Math.min(15, Math.sqrt(k.m)*0.38)),
+        color:dp.s, weight:2, fillColor:dp.f, fillOpacity:.95})
+        .bindTooltip('<span class="tt-title">'+k.n+'</span><span class="tt-sub">'+k.d+' · RBD '+k.rbd+'</span><div class="tt-grid"><span>Matrícula 2025</span><b>'+fmt(k.m)+'</b>'+(k.pago ? '<span>Mensualidad</span><b>'+k.pago+'</b>' : '')+'</div>')
+        .addTo(capaCol);
+    });
+  }
+  leyenda(filas.length - vals.length, filas.length);
+
+  if(mover){
+    // encuadre en las manzanas urbanas; si la comuna no tiene, en todo su límite
+    if(!bnd.isValid()) bnd = limites[st.cut].getBounds();
+    map.invalidateSize();
+    map.fitBounds(bnd, {padding:[30,30], animate:false});
+  }
+}
+
+(function(){
+  // parámetros opcionales en la dirección: ?ind=ise&colegios=1&rural=1
+  var q = new URLSearchParams(location.search), v = VARS.filter(function(x){ return x.key===q.get('ind'); })[0];
+  if(v){ st.v = v; st.pest = v.p; }
+  st.colegios = q.get('colegios')==='1'; st.rural = q.get('rural')==='1';
+})();
+render(false);
+setTimeout(function(){ map.invalidateSize(); elegir(+(location.hash.replace('#','')) || DEFAULT_CUT); }, 0);
+})();
+</script>
+</body>
+</html>
